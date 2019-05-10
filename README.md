@@ -1,6 +1,19 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
    
+   main.cpp line(s) [96 -97] declares the next xy values to be set.
+   main.cpp line(s) [105] calls method that creates the next xy values.
+
+   behaviorplanning.h line(s) [185 - 351] has path planning logic in method definexypoints_straight_2().
+   behaviorplanning.h line(s) [199 - 236] - Iterate through each vehicle's sensor values. Slow down for vehicles ahead in same lane. Change lanes based on safety criteria.
+   behaviorplanning.h line(s) [290 - 292] - In Frenet add points ahead of the initial reference. Along d create 30m spaced points. 
+   behaviorplanning.h line(s) [305 - 309] - Shift vehicle reference angle to 0.
+   behaviorplanning.h line(s) [312 - 314] - Create spline and add points to it. It will help us get the desired y points.
+   behaviorplanning.h line(s) [345 - 309] - Shift back vehicle reference angle.
+
+Successful Run.
+![alt text](success.JPG)
+
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases/tag/T3_v1.2).  
 

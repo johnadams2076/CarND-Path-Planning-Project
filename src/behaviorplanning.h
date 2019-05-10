@@ -1,7 +1,10 @@
 
 #include "spline.h"
+using namespace std;
+
 
 double ref_vel = 0.0; //mph
+int lane = 1;
 
 void definexypoints_circle(vector<double>& next_x_vals, vector<double>& next_y_vals, double car_x, double car_y, double car_yaw, vector<double> previous_path_x, vector<double> previous_path_y)
 {
@@ -182,46 +185,65 @@ void definexypoints_straight_1(vector<double> & next_x_vals, vector<double> & ne
 void definexypoints_straight_2(vector<double> & next_x_vals, vector<double> & next_y_vals, double car_s, double car_x, double car_y, double car_yaw, double end_path_s, double end_path_d, vector<vector<double>> sensor_fusion, vector<double> previous_path_x, vector<double> previous_path_y, vector<double> maps_s, vector<double> maps_x, vector<double> maps_y)
 {
 	int prev_size = previous_path_x.size();
-	int lane = 1;
-
 
 	if (prev_size > 0)
 	{
 		car_s = end_path_s;
 	}
 	bool too_close = false;
+	bool is_left_lane_safe = true;
+	bool is_right_lane_safe = true;
+	const double safe_dist = 30.0;
 
+	// Iterate through other vehicles.
 	for (int i = 0; i < sensor_fusion.size(); i++)
 	{
+		double vx = sensor_fusion[i][3];
+		double vy = sensor_fusion[i][4];
+		double check_speed = sqrt(vx * vx + vy * vy);
+		double check_car_s = sensor_fusion[i][5];
 		float d = sensor_fusion[i][6];
+		// Other vehicle is in same lane as ours.
 		if (d < (2 + 4 * lane + 2) && d >(2 + 4 * lane - 2))
 		{
-			double vx = sensor_fusion[i][3];
-			double vy = sensor_fusion[i][4];
-			double check_speed = sqrt(vx * vx + vy * vy);
-			double check_car_s = sensor_fusion[i][5];
-
 			check_car_s += (double)(prev_size * 0.02 * check_speed);
 
-			if ((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+			if ((check_car_s > car_s) && ((check_car_s - car_s) < safe_dist))
 			{
 				//ref_vel = 29.5; //mph
 				too_close = true;
-				if (lane > 0)
-				{
-					lane = 0;
-
-				}
 			}
 		}
-	}
+		// Relative distance betweeen our vehicle and the other vehicle.
+		double rel_dist = abs(check_car_s - car_s);
+		// Check other vehicle is left of our vehicle.
+		int rel_left_lane = lane - 1;
+		if (is_left_lane_safe && rel_left_lane >= 0 && d < (2 + 4 * rel_left_lane + 2) && d >(2 + 4 * rel_left_lane - 2)) {
 
-	if (too_close)
-	{
-		ref_vel -= 0.224;
+			if (rel_dist < safe_dist) {
+				is_left_lane_safe = false;
+			}
+		}
+		// Check other vehicle is in right of our vehicle.
+		int rel_right_lane = lane + 1;
+		if (is_right_lane_safe && rel_right_lane <= 2 && d < (2 + 4 * rel_right_lane + 2) && d >(2 + 4 * rel_right_lane - 2)) {
+
+			if (rel_dist < safe_dist) {
+				is_right_lane_safe = false;
+			}
+		}
+
 	}
-	else if (ref_vel < 49.5)
-	{
+	// Change lane if vehicle ahead is too close and it is safe.
+	if (too_close) {
+		if (lane != 0 && is_left_lane_safe)
+			lane--;
+		else if (lane != 2 && is_right_lane_safe)
+			lane++;
+		else
+			ref_vel -= 0.224;
+	}
+	else if (ref_vel < 49.5) {
 		ref_vel += 0.224;
 	}
 
@@ -232,7 +254,7 @@ void definexypoints_straight_2(vector<double> & next_x_vals, vector<double> & ne
 	double ref_y = car_y;
 	double ref_yaw = deg2rad(car_yaw);
 
-	// Previous list is cloe to empty. Car is the initial reference.
+	// Previous list is close to empty. Car is the initial reference.
 	if (prev_size < 2)
 	{
 		// Points tangent to car.
@@ -285,9 +307,6 @@ void definexypoints_straight_2(vector<double> & next_x_vals, vector<double> & ne
 
 		ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
 		ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
-
-
-
 	}
 	// Create a spline.
 	tk::spline s;
@@ -309,6 +328,7 @@ void definexypoints_straight_2(vector<double> & next_x_vals, vector<double> & ne
 	// Ensuring 50 points are outputted.
 	for (int i = 1; i <= 50 - prev_size; i++)
 	{
+		// Compiler will optimize.
 		double N = (target_dist / (0.02 * ref_vel / 2.24));
 		double x_point = x_add_on + (target_x) / N;
 		double y_point = s(x_point);
@@ -328,13 +348,4 @@ void definexypoints_straight_2(vector<double> & next_x_vals, vector<double> & ne
 		next_y_vals.push_back(y_point);
 
 	}
-
-	/*double dist_inc = 0.5;
-	for (int i = 0; i < 50; ++i) {
-		double next_s = car_s + (i + 1) * dist_inc;
-		double next_d = 6;
-		vector<double> xy = getXY(next_s, next_d, maps_s, maps_x, maps_y);
-		next_x_vals.push_back(xy[0]);
-		next_y_vals.push_back(xy[1]);
-	}*/
 }
